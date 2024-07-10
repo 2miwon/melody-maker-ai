@@ -139,3 +139,6 @@ var/
 venv.bak/
 venv/
 wheels/
+output_frames
+uploaded_files
+pth
