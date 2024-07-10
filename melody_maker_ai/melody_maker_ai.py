@@ -2,8 +2,13 @@
 
 import reflex as rx
 import os
-# import cv2
-# import torch
+import cv2
+import torch
+import clip
+from PIL import Image
+
+output_folder = "output_frames"
+frame_interval = 2  # Interval in seconds
 
 def extract_frames(video_path, output_folder, frame_interval=2):
 
@@ -43,24 +48,67 @@ class State(rx.State):
     video_url = ""
     video_processing = False
     video_made = False
+    output_video = ""
+    # The images to show.
+    img: list[str]
 
-    def get_dalle_result(self, form_data: dict[str, str]):
-        prompt_text: str = form_data["prompt_text"]
+    async def get_dalle_result(self, files: list[rx.UploadFile]):
+        # prompt_text: str = form_data["prompt_text"]
         self.video_made = False
         self.video_processing = True
         # Yield here so the image_processing take effects and the circular progress is shown.
         yield
-        # try:
-        #     response = get_openai_client().images.generate(
-        #         prompt=prompt_text, n=1, size="1024x1024"
-        #     )
-        #     self.image_url = response.data[0].url
-        #     self.video_processing = False
-        #     self.video_made = True
-        #     yield
-        # except Exception as ex:
-        #     self.video_processing = False
-        #     yield rx.window_alert(f"Error with OpenAI Execution. {ex}")
+        try:
+            # response = get_openai_client().images.generate(
+            #     prompt=prompt_text, n=1, size="1024x1024"
+            # )
+            # self.image_url = response.data[0].url
+            
+            file = files[0]
+            upload_data = await file.read()
+            outfile = rx.get_upload_dir() / file.filename
+            
+            # Save the file.
+            with outfile.open("wb") as file_object:
+                file_object.write(upload_data)
+
+            # Update the img var.
+            self.img.append(file.filename)
+            
+            video_path = outfile
+            # get the length of the video
+            cap = cv2.VideoCapture(video_path)
+            video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            print(video_length)
+            cap.release()
+
+            if not os.path.exists(output_folder): 
+                os.makedirs(output_folder)
+            
+            # Call the function to extract frames
+            extract_frames(video_path, output_folder, frame_interval)
+
+            """#CLIP model inference (based on the trained weights)"""
+
+            files = [f for f in os.listdir("output_frames")]
+            # order the files according to the frame number "frame_n"
+            # remove '.pynb_checkpoints' file
+            files = [f for f in os.listdir("output_frames") if f.endswith(".jpg") and not f.startswith(".pynb_checkpoints")]
+            files.sort()
+
+            print(files)
+
+            # Load CLIP model
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            model, preprocess = clip.load("ViT-L/14", device)
+                
+            self.video_processing = False
+            self.video_made = True
+
+            yield
+        except Exception as ex:
+            self.video_processing = False
+            yield rx.window_alert(f"Error with OpenAI Execution. {ex}")
 
 
 def index():
@@ -117,7 +165,7 @@ def index():
                     spacing="2",
                 ),
                 width="100%",
-                on_submit=State.get_dalle_result,
+                on_submit=State.get_dalle_result(rx.upload_files(upload_id="my_upload")), 
             ),
             rx.divider(),
             rx.flex(
