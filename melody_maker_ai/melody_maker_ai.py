@@ -11,7 +11,6 @@ output_folder = "output_frames"
 frame_interval = 2  # Interval in seconds
 
 def extract_frames(video_path, output_folder, frame_interval=2):
-
     # Open the video file
     cap = cv2.VideoCapture(video_path)
 

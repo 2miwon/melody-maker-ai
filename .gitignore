@@ -139,3 +139,4 @@ var/
 venv.bak/
 venv/
 wheels/
+test*
