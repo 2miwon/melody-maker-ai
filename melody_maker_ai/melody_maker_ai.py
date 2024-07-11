@@ -238,8 +238,6 @@ class State(rx.State):
 
             # """# Part 3: Extract musical features from the emotion and make prompt"""
 
-            # GROQ_API_KEY="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"
-
             # pp = pprint.PrettyPrinter(indent=4)
 
             # # Load LLM model for RAG (배포할 때마다만 모델 불러오기로 바꿈)
