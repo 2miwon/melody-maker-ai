@@ -67,8 +67,6 @@ class State(rx.State):
     video_processing = False
     video_made = False
     output_video: str = ""
-    # The images to show.
-    # video: list[str]
     video: str = ""
 
     # @rx.var
@@ -108,6 +106,7 @@ class State(rx.State):
 
     async def handle_upload(self, files: List[rx.UploadFile]):
         self.video_processing = True
+        yield
         file = files[0]
         upload_data = await file.read()
         outfile = rx.get_upload_dir() / file.filename
@@ -115,7 +114,7 @@ class State(rx.State):
         # Save the file.
         with outfile.open("wb") as file_object:
             file_object.write(upload_data)
-        print(outfile)
+
         # Update the img var.
         self.video = file.filename
 
