@@ -22,68 +22,13 @@ import pretty_midi
 # from audiocraft.data.audio import audio_write
 from pychord import Chord
 from IPython.display import Audio # to display wav audio file
-from enum import Enum
 import logging
 import asyncio
+from .config import *
+from pathlib import Path
+from typing import List
 
 output_folder = "output_frames"
-frame_interval = 2  # Interval in seconds
-
-# sorted_emotions = sorted(emotions, key=lambda x: x.percentage, reverse=True)
-
-class Emotion(Enum):
-    PEACE = ("Peace", "평화로운", "😌")
-    AFFECTION = ("Affection", "애정", "🥰")
-    ESTEEM = ("Esteem", "존경", "🤩")
-    ANTICIPATION = ("Anticipation", "기대", "😚")
-    ENGAGEMENT = ("Engagement", "몰입", "🧐")
-    CONFIDENCE = ("Confidence", "자신감", "😎")
-    HAPPINESS = ("Happiness", "행복", "😊")
-    PLEASURE = ("Pleasure", "즐거움", "😋")
-    EXCITEMENT = ("Excitement", "흥분", "😆")
-    SURPRISE = ("Surprise", "놀람", "😲")
-    SYMPATHY = ("Sympathy", "공감", "🥺")
-    DOUBT_CONFUSION = ("Doubt/Confusion", "의심/혼란", "🤔")
-    DISCONNECTION = ("Disconnection", "무감각", "😶")
-    FATIGUE = ("Fatigue", "피로", "😴")
-    EMBARRASSMENT = ("Embarrassment", "당황", "😳")
-    YEARNING = ("Yearning", "갈망", "🤑")
-    DISAPPROVAL = ("Disapproval", "비난", "😒")
-    AVERSION = ("Aversion", "혐오", "🤢")
-    ANNOYANCE = ("Annoyance", "짜증", "😠")
-    ANGER = ("Anger", "분노", "😡")
-    SENSITIVITY = ("Sensitivity", "민감", "😬")
-    SADNESS = ("Sadness", "슬픔", "😢")
-    DISQUIETMENT = ("Disquietment", "불안", "😨")
-    FEAR = ("Fear", "공포", "😱")
-    PAIN = ("Pain", "고통", "😣")
-    SUFFERING = ("Suffering", "괴로움", "😖")
-
-    def __new__(cls, name, kor_name, emoji):
-        member = object.__new__(cls)
-        member._value_ = name
-        member.kor_name = kor_name
-        member.emoji = emoji
-        member.percentage = 0
-        return member
-
-    def set_percentage(self, percentage):
-        self.percentage = percentage
-
-    def __str__(self):
-        return self._value_
-    
-    @staticmethod
-    def get_emotion():
-        return [emotion for emotion in Emotion]
-
-    @staticmethod
-    def get_percentage_list():
-        return [emotion.percentage for emotion in Emotion]
-
-    @staticmethod
-    def get_sorted_emotions():
-        return sorted(Emotion, key=lambda x: x.percentage, reverse=True)
 
 async def extract_frames(video_path, output_folder, frame_interval=2):
     # Open the video file
@@ -116,23 +61,54 @@ async def extract_frames(video_path, output_folder, frame_interval=2):
     # Release the video capture object
     cap.release()
 
-class State(rx.State):
-    """The app state."""
-    
+class State(rx.State):    
     video_url = ""
+    is_uploading: bool = False
     video_processing = False
     video_made = False
-    output_video = ""
+    output_video: str = ""
     # The images to show.
     # video: list[str]
-    video: list[str] = []
+    video: str = ""
 
-    async def handle_upload(self, file: rx.UploadFile):
-        """Handle the upload of file.
+    # @rx.var
+    # def files(self) -> list[str]:
+    #     """Get the string representation of the uploaded files."""
+    #     return [
+    #         "/".join(p.parts[1:])
+    #         for p in Path(rx.get_upload_dir()).rglob("*")
+    #         if p.is_file()
+    #     ]
 
-        Args:
-            file: The uploaded files.
-        """
+    # def handle_upload_progress(self, progress: dict):
+    #     self.uploading = True
+    #     self.progress = round(progress["progress"] * 100)
+    #     if self.progress >= 100:
+    #         self.uploading = False
+
+    # def cancel_upload(self):
+    #     self.uploading = False
+    #     return rx.cancel_upload("upload3")    
+
+    def on_upload_progress(self, prog: dict):
+        print("Got progress", prog)
+        if prog["progress"] < 1:
+            self.is_uploading = True
+        else:
+            self.is_uploading = False
+        self.upload_progress = round(prog["progress"] * 100)
+
+    async def handle_drop(self):
+        try:
+            State.handle_upload(rx.upload_files(upload_id="my_upload")) #, on_upload_progress=self.on_upload_progress))
+        except TypeError:
+            return rx.window_alert("Invalid file format")
+        except Exception as ex:
+            return rx.window_alert(f"Error with file upload. {ex}")
+
+    async def handle_upload(self, files: List[rx.UploadFile]):
+        self.video_processing = True
+        file = files[0]
         upload_data = await file.read()
         outfile = rx.get_upload_dir() / file.filename
         
@@ -141,12 +117,13 @@ class State(rx.State):
             file_object.write(upload_data)
         print(outfile)
         # Update the img var.
-        self.video.append(file.filename)
+        self.video = file.filename
+
+        # self.video_processing = False
 
     async def get_dalle_result(self, files: list[rx.UploadFile]):
         # prompt_text: str = form_data["prompt_text"]
         self.video_made = False
-        self.video_processing = True
         # Yield here so the image_processing take effects and the circular progress is shown.
         yield
         try:
@@ -399,16 +376,37 @@ def index():
                     rx.image(
                         src=State.video_url,
                     ),
-                    rx.upload(
-                        rx.text(
-                            "Drag and drop video or click to select video file"
+                    rx.cond(
+                        rx.selected_files("my_upload"),
+                        rx.foreach(
+                            rx.selected_files("my_upload"),
+                            rx.text,
                         ),
-                        accept="video/*",
-                        id="my_upload",
-                        border="1px dotted rgb(107,99,246)",
-                        padding="5em",
-                        multiple=False,
-                        max_size= 1000000, # 10mb
+                        # rx.vstack(
+                        #     rx.button(
+                        #         rx.icon("refresh-cw"),
+                        #         "Upload Another Video",
+                        #         on_click=rx.clear_selected_files(),
+                        #     ),
+                        #     rx.text("Video Uploaded", font_size="1.5em"),
+
+                        #     align="center",
+                        #     spacing="2",
+                        # ),
+                        rx.upload(
+                            rx.text(
+                                "Drag and drop video or click to select video file\n max size: 10mb",
+                            ),
+                            accept={"video": ["video/*"]},
+                            id="my_upload",
+                            border="1px dotted rgb(107,99,246)",
+                            padding="5em",
+                            multiple=False,
+                            # on_drop=State.handle_drop(),
+                            on_drop=State.handle_upload(rx.upload_files(upload_id="my_upload")),
+                            disabled=False,
+                            max_size=10000000, # 10mb
+                        ),
                     ),
                 ),
             ),
@@ -421,25 +419,17 @@ def index():
                     #     disabled=State.video_processing | State.video_made,
                     # ),
                     rx.button(
-                        rx.cond(
-                            State.video_processing,
-                            "Generating Music...",
-                            rx.cond(
-                                State.video_made,
-                                "Download Video with Music",
-                                "Generate Music by Video",
-                            ),                            
-                        ),
-                        on_click=State.handle_upload(rx.upload_files(upload_id="my_upload")),
-                        type="submit",
+                        "Download Video with Music",
+                        # type="submit",
                         size="3",
-                        disabled=State.video_processing,
+                        disabled=~State.video_made,
+                        on_click=rx.download(url="/result.mp4", filename="result.mp4"),
                     ),
                     align="stretch",
                     spacing="2",
                 ),
                 width="100%",
-                on_submit=State.get_dalle_result(rx.upload_files(upload_id="my_upload")), 
+                # on_submit=State.get_dalle_result(rx.upload_files(upload_id="my_upload")), 
             ),
             rx.divider(),
             rx.flex(
