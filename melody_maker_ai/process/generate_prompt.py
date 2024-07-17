@@ -39,6 +39,4 @@ def generate_prompt(inputs):
 
     chord_text = text[:split_index]
     description_text = text[split_index:]
-    print("DS", chord_text)
-    print(":", description_text)
     return chord_text, description_text

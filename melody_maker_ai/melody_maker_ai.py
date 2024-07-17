@@ -59,25 +59,35 @@ class State(rx.State):
         with outfile_path.open("wb") as file_object:
             file_object.write(upload_data)
 
+        # 1. 프레임 쪼개기
         video_length = extract_frames(outfile_path, unique_path)
-
+        
+        # 2. clip으로 감정 분석
         emotional_analysis(unique_path)
-        self.chart_data = Emotion.get_dict_list()
 
-        Emotion.print_prediction_list()
+        self.chart_data = Emotion.get_dict_list()
+        # Emotion.print_prediction_list()
 
         inputs = [emotion._value_ for emotion in Emotion.get_top_emotion(top=3)]
+        
+        # 3. spaceformer로 video captioning
         caption = generate_caption(outfile_path)
+        
         inputs.append(caption)
         print("caption", caption)
 
+        # 4. Llama로 2과 3의 정보 합쳐서 적절한 music prompt 생성
         prompt = generate_prompt(inputs)
+
+        # 5. 생성된 music prompt를 musicgen에게 주고 음악 생성
         # create_midi_with_beat(inputs, "output_frames")
+
+        # 6. 생성된 음악과 영상 합치기
         # combine_midi(video_length, outfile_path, outfile_path, prompt)
         print("prompt", prompt)
         self.output_video = unique_path + "/result.mp4"
 
-        # self.video_processing = False
+        self.video_processing = False
     
 
 def index():
@@ -93,14 +103,18 @@ def index():
                 State.chart_data,
                 pie_chart(State.chart_data),
                 rx.heading("Conditional Music Generation based on visual analysis of short video contents", font_size="1.0em", align="center"),
-
             ),
             rx.cond(
                 State.video_processing,
                 rx.chakra.circular_progress(is_indeterminate=True),
                 rx.cond(
                     State.output_video,
-                    rx.text("Video with Music Generated", font_size="1.0em"),
+                    # rx.text("Video with Music Generated", font_size="1.0em"),
+                    rx.video(
+                        url=State.output_video,
+                        width="100%",
+                        height="auto",
+                    ),
                     rx.cond(
                         rx.selected_files("my_upload"),
                         rx.foreach(
@@ -141,8 +155,6 @@ def index():
             align="center",
             gap="1.5em",
         ),
-        # rx.divider(),
-        # rx.text("Background Music Generator", font_size="1.5em", align="end"),
         align="center",
         width="100%",
         height="100vh",
