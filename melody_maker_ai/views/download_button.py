@@ -1,6 +1,6 @@
 import reflex as rx
 
-def download_button(state: rx.State, result_fname: str) -> rx.Component:
+def download_button(state: rx.State) -> rx.Component:
     return rx.button(
             "Download Video with Music",
             # type="submit",
@@ -14,6 +14,6 @@ def download_button(state: rx.State, result_fname: str) -> rx.Component:
                 "opacity": 0.5,
             },
             size="3",
-            disabled=~state.video_url,
-            on_click=rx.download(url=state.video_url, filename=result_fname),
+            disabled=~state.output_video,
+            on_click=rx.download(url=state.output_video, filename="result.mp4"),
         )

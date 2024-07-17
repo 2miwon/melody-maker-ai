@@ -31,4 +31,4 @@ def combine_midi(video_length, input_video_path, path, discription):
 
     video = video.set_audio(audio)
 
-    video.write_videofile(f"{path}/video.mp4", codec='libx264', audio_codec='aac')
+    video.write_videofile(f"{path}/result.mp4", codec='libx264', audio_codec='aac')

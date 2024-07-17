@@ -3,7 +3,7 @@ from pychord import Chord
 import subprocess
 
 def create_midi_with_beat(chords_str, file_path, length = 4, instrument = 'Electric Guitar (jazz)'):
-    chords = [Chord(key) for key in chords_str[:7]]
+    chords = [Chord(key) for key in chords_str[:8]]
     midi_data = pretty_midi.PrettyMIDI()
     piano_program = pretty_midi.instrument_name_to_program(instrument)
     piano = pretty_midi.Instrument(program=piano_program)

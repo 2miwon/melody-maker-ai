@@ -22,13 +22,15 @@ def generate_caption(file_path):
         if i in indices:
             frames.append(frame.to_ndarray(format="rgb24"))
     
+    frames_np = np.stack(frames)
+
     # generate caption
     gen_kwargs = {
         "min_length": 10,
         "max_length": 20,
         "num_beams": 8,
     }
-    pixel_values = image_processor(frames, return_tensors="pt").pixel_values.to(device)
+    pixel_values = image_processor(frames_np, return_tensors="pt").pixel_values.to(device)
     tokens = model.generate(pixel_values, **gen_kwargs)
     caption = tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
     return caption
