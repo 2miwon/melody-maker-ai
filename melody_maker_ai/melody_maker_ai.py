@@ -1,34 +1,11 @@
 """Welcome to Reflex! This file outlines the steps to create a basic app."""
 
 import reflex as rx
-import torch
-import clip
-from PIL import Image
-import numpy as np
-import spacy
-import scipy
-# from sklearn.metrics.pairwise import cosine_similarity
-import av
-from transformers import AutoImageProcessor, AutoTokenizer, VisionEncoderDecoderModel
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
-import pprint
-import json
-import torchaudio
-import pretty_midi
-# from audiocraft.models import MusicGen
-# from audiocraft.data.audio import audio_write
-from pychord import Chord
-from IPython.display import Audio # to display wav audio file
-import logging
-import asyncio
 from .config import *
 from .utils import *
-from pathlib import Path
 from typing import List
 from .process import *
 from .views import *
-
 
 class State(rx.State):    
     is_uploading: bool = False
@@ -77,14 +54,16 @@ class State(rx.State):
         print("caption", caption)
 
         # 4. Llama로 2과 3의 정보 합쳐서 적절한 music prompt 생성
-        prompt = generate_prompt(inputs)
+        chord, prompt = generate_prompt(inputs)
+
+        print("chord: ", chord)
+        print("prompt: ", prompt)
 
         # 5. 생성된 music prompt를 musicgen에게 주고 음악 생성
-        # create_midi_with_beat(inputs, "output_frames")
+        create_midi_with_beat(chord, unique_path)
 
         # 6. 생성된 음악과 영상 합치기
         # combine_midi(video_length, outfile_path, outfile_path, prompt)
-        print("prompt", prompt)
         self.output_video = unique_path + "/result.mp4"
 
         self.video_processing = False
