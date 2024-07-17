@@ -63,7 +63,7 @@ class State(rx.State):
         create_midi_with_beat(chord, unique_path)
 
         # 6. 생성된 음악과 영상 합치기
-        # combine_midi(video_length, outfile_path, outfile_path, prompt)
+        combine_midi(video_length, outfile_path, unique_path, prompt)
         self.output_video = unique_path + "/result.mp4"
 
         self.video_processing = False

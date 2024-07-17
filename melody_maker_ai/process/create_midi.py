@@ -16,6 +16,6 @@ def create_midi_with_beat(chords_str, file_path, length = 4, instrument = 'Elect
         idx += 1
     midi_data.instruments.append(piano)
     midi_data.write(f'{file_path}/melody.mid')
-    command = "fluidsynth -ni font.sf2 {file_path}/melody.mid -F {file_path}/melody.wav -r 44100"
+    command = f"fluidsynth -ni font.sf2 {file_path}/melody.mid -F {file_path}/melody.wav -r 44100"
     subprocess.run(command, shell=True, check=True)
 

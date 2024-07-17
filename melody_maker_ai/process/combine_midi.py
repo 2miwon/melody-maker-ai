@@ -7,7 +7,7 @@ processor = AutoProcessor.from_pretrained("facebook/musicgen-melody")
 model = MusicgenMelodyForConditionalGeneration.from_pretrained("facebook/musicgen-melody")
 
 def combine_midi(video_length, input_video_path, path, description):
-    melody, sr = torchaudio.load("output_frames/melody.wav")
+    melody, sr = torchaudio.load(f"{path}/melody.wav")
     inputs = processor(
             audio=melody[0],
             sampling_rate=sr,
