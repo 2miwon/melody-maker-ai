@@ -1,8 +1,6 @@
 """Welcome to Reflex! This file outlines the steps to create a basic app."""
 
 import reflex as rx
-import os
-import cv2
 import torch
 import clip
 from PIL import Image
@@ -25,68 +23,21 @@ from IPython.display import Audio # to display wav audio file
 import logging
 import asyncio
 from .config import *
+from .utils import *
 from pathlib import Path
 from typing import List
+from .process import *
+from .views import *
 
-output_folder = "output_frames"
-
-async def extract_frames(video_path, output_folder, frame_interval=2):
-    # Open the video file
-    cap = cv2.VideoCapture(video_path)
-
-    # Get the frame rate of the video
-    fps = cap.get(cv2.CAP_PROP_FPS)
-
-    # Calculate the interval in terms of number of frames
-    frame_interval_frames = int(fps * frame_interval)
-
-    # Counter to keep track of frames
-    frame_count = 0
-
-    # Read the first frame
-    success, frame = cap.read()
-
-    while success:
-        # Write the frame to file if it's time to do so
-        if frame_count % frame_interval_frames == 0:
-            frame_filename = f"{output_folder}/frame_{frame_count // frame_interval_frames}.jpg"
-            cv2.imwrite(frame_filename, frame)
-
-        # Read the next frame
-        success, frame = cap.read()
-
-        # Increment frame count
-        frame_count += 1
-
-    # Release the video capture object
-    cap.release()
 
 class State(rx.State):    
     video_url = ""
     is_uploading: bool = False
     video_processing = False
-    video_made = False
     output_video: str = ""
-    video: str = ""
-
-    # @rx.var
-    # def files(self) -> list[str]:
-    #     """Get the string representation of the uploaded files."""
-    #     return [
-    #         "/".join(p.parts[1:])
-    #         for p in Path(rx.get_upload_dir()).rglob("*")
-    #         if p.is_file()
-    #     ]
-
-    # def handle_upload_progress(self, progress: dict):
-    #     self.uploading = True
-    #     self.progress = round(progress["progress"] * 100)
-    #     if self.progress >= 100:
-    #         self.uploading = False
-
-    # def cancel_upload(self):
-    #     self.uploading = False
-    #     return rx.cancel_upload("upload3")    
+    video: str = ""    
+    result: dict = {}
+    chart_data = []
 
     def on_upload_progress(self, prog: dict):
         print("Got progress", prog)
@@ -96,67 +47,37 @@ class State(rx.State):
             self.is_uploading = False
         self.upload_progress = round(prog["progress"] * 100)
 
-    async def handle_drop(self):
-        try:
-            State.handle_upload(rx.upload_files(upload_id="my_upload")) #, on_upload_progress=self.on_upload_progress))
-        except TypeError:
-            return rx.window_alert("Invalid file format")
-        except Exception as ex:
-            return rx.window_alert(f"Error with file upload. {ex}")
-
     async def handle_upload(self, files: List[rx.UploadFile]):
         self.video_processing = True
         yield
         file = files[0]
         upload_data = await file.read()
-        outfile = rx.get_upload_dir() / file.filename
-        
-        # Save the file.
-        with outfile.open("wb") as file_object:
+        uuid = generate_uuid()
+        output_fname = uuid #+ get_file_extension(file.filename)
+        outfile_path = rx.get_upload_dir() / output_fname
+        unique_path = "assets/" + uuid
+
+        with outfile_path.open("wb") as file_object:
             file_object.write(upload_data)
 
-        # Update the img var.
-        self.video = file.filename
+        video_length = extract_frames(outfile_path, unique_path)
+        emotional_analysis(unique_path)
+        self.chart_data = Emotion.get_dict_list()
+
+        inputs = [emotion._value_ for emotion in Emotion.get_top_emotion(top=3)]
+        caption = generate_caption(outfile_path)
+        inputs.append(caption)
+
+        prompt = generate_prompt(inputs)
+        create_midi_with_beat(inputs, "output_frames")
+        combine_midi(video_length, outfile_path, outfile_path, prompt)
+
+        self.video = outfile_path
 
         # self.video_processing = False
 
     async def get_dalle_result(self, files: list[rx.UploadFile]):
-        # prompt_text: str = form_data["prompt_text"]
-        self.video_made = False
-        # Yield here so the image_processing take effects and the circular progress is shown.
-        yield
         try:
-            # response = get_openai_client().images.generate(
-            #     prompt=prompt_text, n=1, size="1024x1024"
-            # )
-            # self.image_url = response.data[0].url
-            
-            file = files[0]
-            upload_data = await file.read()
-            outfile = rx.get_upload_dir() / file.filename
-            
-            # Save the file.
-            with outfile.open("wb") as file_object:
-                file_object.write(upload_data)
-
-            # Update the img var.
-            self.img.append(file.filename)
-            
-            video_path = outfile
-            # get the length of the video
-            cap = cv2.VideoCapture(video_path)
-            video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            print("Video Length: ", video_length)
-            cap.release()
-
-            if not os.path.exists(output_folder): 
-                os.makedirs(output_folder)
-            
-            # Call the function to extract frames
-            extract_frames(video_path, output_folder, frame_interval)
-
-            """# Part 1: CLIP model emotions inference (based on the trained weights)"""
-
             # files = [f for f in os.listdir("output_frames")]
             # # order the files according to the frame number "frame_n"
             # # remove '.pynb_checkpoints' file
@@ -366,12 +287,17 @@ def index():
                 align="end",
             ),
             rx.heading("BGM Generator", font_size="1.8em"),
-            rx.heading("Conditional Music Generation based on visual analysis of short video contents", font_size="1.0em", align="center"),
+            rx.cond(
+                State.chart_data,
+                pie_chart(State.chart_data),
+                rx.heading("Conditional Music Generation based on visual analysis of short video contents", font_size="1.0em", align="center"),
+
+            ),
             rx.cond(
                 State.video_processing,
                 rx.chakra.circular_progress(is_indeterminate=True),
                 rx.cond(
-                    State.video_made,
+                    State.video_url,
                     rx.image(
                         src=State.video_url,
                     ),
@@ -381,31 +307,7 @@ def index():
                             rx.selected_files("my_upload"),
                             rx.text,
                         ),
-                        # rx.vstack(
-                        #     rx.button(
-                        #         rx.icon("refresh-cw"),
-                        #         "Upload Another Video",
-                        #         on_click=rx.clear_selected_files(),
-                        #     ),
-                        #     rx.text("Video Uploaded", font_size="1.5em"),
-
-                        #     align="center",
-                        #     spacing="2",
-                        # ),
-                        rx.upload(
-                            rx.text(
-                                "Drag and drop video or click to select video file\n max size: 10mb",
-                            ),
-                            accept={"video": ["video/*"]},
-                            id="my_upload",
-                            border="1px dotted rgb(107,99,246)",
-                            padding="5em",
-                            multiple=False,
-                            # on_drop=State.handle_drop(),
-                            on_drop=State.handle_upload(rx.upload_files(upload_id="my_upload")),
-                            disabled=False,
-                            max_size=10000000, # 10mb
-                        ),
+                        upload_box(State),
                     ),
                 ),
             ),
@@ -417,13 +319,7 @@ def index():
                     #     size="3",
                     #     disabled=State.video_processing | State.video_made,
                     # ),
-                    rx.button(
-                        "Download Video with Music",
-                        # type="submit",
-                        size="3",
-                        disabled=~State.video_made,
-                        on_click=rx.download(url="/result.mp4", filename="result.mp4"),
-                    ),
+                    download_button(State, "output.mp4"),
                     align="stretch",
                     spacing="2",
                 ),

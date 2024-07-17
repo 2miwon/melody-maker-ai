@@ -143,3 +143,6 @@ output_frames
 uploaded_files
 pth
 test*
+*.pth
+frames/
+.env
