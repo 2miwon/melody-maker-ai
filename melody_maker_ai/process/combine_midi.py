@@ -7,7 +7,7 @@ processor = AutoProcessor.from_pretrained("facebook/musicgen-melody")
 model = MusicgenMelodyForConditionalGeneration.from_pretrained("facebook/musicgen-melody")
 
 def combine_midi(video_length, input_video_path, path, description):
-    melody, sr = torchaudio.load("output_frames/melody.wav")
+    melody, sr = torchaudio.load(f"{path}/melody.wav")
     inputs = processor(
             audio=melody[0],
             sampling_rate=sr,
@@ -15,11 +15,14 @@ def combine_midi(video_length, input_video_path, path, description):
             padding=True,
             return_tensors="pt",
         )
-    wav = model.generate(**inputs.to("cpu"), do_sample=True, guidance_scale=3, max_new_tokens=256)
-    scipy.io.wavfile.write(f"{path}/result.wav", rate=sr, data=wav[0, 0].cpu().numpy())
-
-    video = VideoFileClip(input_video_path)
-    audio = AudioFileClip(f"{path}/result.wav")
+    print("Generating...")
+    # wav = model.generate(**inputs.to("cpu"), do_sample=True, guidance_scale=3, max_new_tokens=256)
+    # scipy.io.wavfile.write(f"{path}/result.wav", rate=sr, data=wav[0, 0].cpu().numpy())
+    print("Done.")
+    
+    video = VideoFileClip(str(input_video_path))
+    # audio = AudioFileClip(f"{path}/result.wav")
+    audio = AudioFileClip(str(f"{path}/melody.wav"))
     
     audio_duration = audio.duration
 
@@ -39,3 +42,5 @@ def combine_midi(video_length, input_video_path, path, description):
     video = video.set_audio(audio)
 
     video.write_videofile(f"{path}/video.mp4", codec='libx264', audio_codec='aac')
+
+    return str(f"{path}/video.mp4")
