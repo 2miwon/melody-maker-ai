@@ -119,6 +119,7 @@ dist/
 dmypy.json
 docs/_build/
 downloads/
+font.sf2
 eggs/
 env.bak/
 env/
