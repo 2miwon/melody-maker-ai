@@ -147,3 +147,5 @@ var/
 venv.bak/
 venv/
 wheels/
+*.sf2
+*.pth
