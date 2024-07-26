@@ -51,21 +51,21 @@ class State(rx.State):
         caption = generate_caption(outfile_path)
         
         inputs.append(caption)
-        print("caption", caption)
+        print("Caption: ", caption)
 
         # 4. Llama로 2과 3의 정보 합쳐서 적절한 music prompt 생성
         chord, prompt = generate_prompt(inputs)
 
-        print("chord: ", chord)
-        print("prompt: ", prompt)
+        print("Chord: ", chord)
+        print("Prompt: ", prompt)
 
         # 5. 생성된 music prompt를 musicgen에게 주고 음악 생성
         create_midi_with_beat(chord, unique_path)
 
         # 6. 생성된 음악과 영상 합치기
-        # combine_midi(video_length, outfile_path, outfile_path, prompt)
-        self.output_video = unique_path + "/result.mp4"
-
+        self.output_video = combine_midi(video_length, outfile_path, unique_path, prompt)
+        # self.output_video = outfile_path + unique_path + "/video.mp4"
+        print("Output: ", self.output_video)
         self.video_processing = False
     
 
