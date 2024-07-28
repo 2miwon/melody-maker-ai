@@ -2,9 +2,15 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 from transformers import AutoProcessor, MusicgenMelodyForConditionalGeneration
 import torchaudio
 import scipy
+import torch
 
 processor = AutoProcessor.from_pretrained("facebook/musicgen-melody")
 model = MusicgenMelodyForConditionalGeneration.from_pretrained("facebook/musicgen-melody")
+# device_name = "cpu"
+# device_name = "mps"
+# device = torch.device(device_name)
+# model.to(device)
+# torchaudio.set_audio_backend("sox_io")
 
 def combine_midi(video_length, input_video_path, path, description):
     melody, sr = torchaudio.load(f"{path}/melody.wav")
