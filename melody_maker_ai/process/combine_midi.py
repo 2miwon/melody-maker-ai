@@ -2,7 +2,6 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 from transformers import AutoProcessor, MusicgenMelodyForConditionalGeneration
 import torchaudio
 import scipy
-import torch
 
 processor = AutoProcessor.from_pretrained("facebook/musicgen-melody")
 model = MusicgenMelodyForConditionalGeneration.from_pretrained("facebook/musicgen-melody")
